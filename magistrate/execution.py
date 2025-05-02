@@ -3,11 +3,8 @@ import pydantic
 from magistrate.db import migrate_down, migrate_up, prepare_migration_table, get_current_migration_version
 from magistrate.dbexc import DowngradeIncompatible, CurrentVersionTooHigh, MigrationFailed, TargetBelowZero, TargetVersionTooHigh
 from magistrate.discovery import discover_migrations
-from magistrate.parser import MigrationDirection, parse_migration
+from magistrate.parser import MigrationDirection, parse_migration, Migration
 import typing
-
-if typing.TYPE_CHECKING:
-    from magistrate.parser import Migration
 
 class VersionMigration(pydantic.BaseModel):
     target_version: int | typing.Literal['latest']
@@ -22,13 +19,52 @@ class VersionMigration(pydantic.BaseModel):
 class DirectionMigration(pydantic.BaseModel):
     direction: MigrationDirection
 
+class DirectorySource(pydantic.BaseModel):
+    directory: str
+
+    def select_migrations(self, current_version: int, target_version: int) -> list['Migration']:
+        migration_files = discover_migrations(self.directory)
+
+        migrations: list[Migration] = []
+
+        selected: list[str] = []
+
+        if current_version > target_version:
+            tmp = migration_files[target_version:current_version][::-1]
+            selected = [x[1] for x in tmp]
+        elif current_version < target_version:
+            tmp = migration_files[current_version:target_version]
+            selected = [x[1] for x in tmp]
+        
+        for s in selected:
+            with open(s, 'r') as f:
+                migrations.append(parse_migration(f))
+
+        return migrations
+
+class HardcodedSource(pydantic.BaseModel):
+    migrations: list[Migration]
+
+    @pydantic.model_validator(mode='after')
+    def _auto_sort_migrations(self):
+        self.migrations.sort(key=lambda mig: mig.version)
+        return self
+    
+    def select_migrations(self, current_version: int, target_version: int) -> list['Migration']:
+        if current_version > target_version:
+            return self.migrations[target_version:current_version][::-1]
+        elif current_version < target_version:
+            return self.migrations[current_version:target_version]
+        
+        return []
+
 class MigrationParameters(pydantic.BaseModel):
     connection_string: str
-    direction: MigrationDirection
-    migration_directory: str
-    backup_directory: str | None
 
+    migration_source: DirectorySource | HardcodedSource
     migration_type: VersionMigration | DirectionMigration
+
+    backup_directory: str | None = None
 
 def _execute_migration_list(params: MigrationParameters, current_version: int, target_version: int, parsed_migrations: list['Migration']) -> int:
     living_db_version: int = current_version
@@ -57,24 +93,13 @@ def _execute_migration_list(params: MigrationParameters, current_version: int, t
 
     return living_db_version
 
-def _execute_target_migration(params: MigrationParameters, current_version: int, target_version: int, highest_version: int, migrations: list[tuple[int, str]]) -> int:
-    migrations_between: list[tuple[int, str]] = []
+def _execute_target_migration(params: MigrationParameters, current_version: int, target_version: int) -> int:
+    migrations = params.migration_source.select_migrations(current_version, target_version)
 
-    if target_version > current_version:
-        migrations_between = migrations[current_version:target_version]
-    elif target_version < current_version:
-        migrations_between = migrations_between[target_version:current_version][::-1]
-
-    if len(migrations_between) == 0:
+    if len(migrations) == 0:
         return current_version
     
-    parsed_migrations: list['Migration'] = []
-
-    for _, filename in migrations_between:
-        with open(filename, 'r') as f:
-            parsed_migrations.append(parse_migration(f))
-    
-    expected_version: int = _execute_migration_list(params, current_version, target_version, parsed_migrations)
+    expected_version: int = _execute_migration_list(params, current_version, target_version, migrations)
 
     new_current_version = get_current_migration_version(params.connection_string)
 
@@ -82,7 +107,7 @@ def _execute_target_migration(params: MigrationParameters, current_version: int,
 
     return current_version
     
-def _execute_version_migration(params: MigrationParameters, migration_type: VersionMigration, current_version: int, highest_version: int, migrations: list[tuple[int, str]]) -> int:
+def _execute_version_migration(params: MigrationParameters, migration_type: VersionMigration, current_version: int, highest_version: int) -> int:
     target_version: int = -1
 
     if migration_type.target_version == 'latest':
@@ -93,18 +118,29 @@ def _execute_version_migration(params: MigrationParameters, migration_type: Vers
     if target_version == current_version:
         return current_version
 
-    return _execute_target_migration(params, current_version, target_version, highest_version, migrations)
+    return _execute_target_migration(params, current_version, target_version)
 
 def execute_migration(params: MigrationParameters) -> int:
     prepare_migration_table(params.connection_string)
     current_version = get_current_migration_version(params.connection_string)
-    
-    migrations = discover_migrations(params.migration_directory)
 
-    if len(migrations) == 0:
-        return current_version
+    if isinstance(params.migration_source, DirectorySource):
+        dsrc = typing.cast(DirectorySource, params.migration_source)
+        migrations = discover_migrations(dsrc.directory)
+
+        if len(migrations) == 0:
+            return current_version
     
-    highest_version = migrations[-1][0]
+        highest_version = migrations[-1][0]
+    elif isinstance(params.migration_source, HardcodedSource):
+        hsrc = typing.cast(HardcodedSource, params.migration_source)
+
+        if len(hsrc.migrations) == 0:
+            return current_version
+        
+        highest_version = hsrc.migrations[-1].version
+    else:
+        return current_version
 
     if current_version > highest_version:
         raise CurrentVersionTooHigh(current_version, highest_version)
@@ -116,7 +152,7 @@ def execute_migration(params: MigrationParameters) -> int:
         if params.migration_type.target_version != 'latest' and params.migration_type.target_version > highest_version:
             raise TargetVersionTooHigh(params.migration_type.target_version, highest_version)
         
-        return _execute_version_migration(params, typing.cast(VersionMigration, params.migration_type), current_version, highest_version, migrations)
+        return _execute_version_migration(params, typing.cast(VersionMigration, params.migration_type), current_version, highest_version)
     elif isinstance(params.migration_type, DirectionMigration):
         if params.migration_type.direction == MigrationDirection.up:
             target_version = current_version + 1
@@ -127,8 +163,11 @@ def execute_migration(params: MigrationParameters) -> int:
         
         if target_version < 0:
             raise TargetBelowZero()
+        
+        if target_version > highest_version:
+            raise TargetVersionTooHigh(target_version, highest_version)
 
-        return _execute_target_migration(params, current_version, target_version, highest_version, migrations)
+        return _execute_target_migration(params, current_version, target_version)
     
     return current_version
     

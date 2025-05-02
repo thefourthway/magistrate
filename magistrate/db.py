@@ -80,7 +80,7 @@ def get_current_migration_version(conn_string: str):
             ver = versions[0][0]
             return ver
 
-def migrate_up(conn_string: str, migration: Migration):
+def migrate_up(conn_string: str, migration: 'Migration'):
     current_version = get_current_migration_version(conn_string)
 
     if migration.version != current_version + 1:
@@ -94,12 +94,12 @@ def migrate_up(conn_string: str, migration: Migration):
                 for query in migration.up_queries:
                     cur.execute(query)
 
-                cur.execute('UPDATE magistrate_migrations SET version = %s', (migration.version))
+                cur.execute('UPDATE magistrate_migrations SET version = %s', (migration.version,))
 
                 conn.commit()
             except Exception:
                 conn.rollback()
                 raise 
 
-def migrate_down(conn_string: str, migration: Migration):
+def migrate_down(conn_string: str, migration: 'Migration'):
     pass

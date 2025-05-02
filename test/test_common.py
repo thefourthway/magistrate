@@ -1,1 +1,6 @@
-TEST_CONN_STRING = 'postgresql://magistrate_test:magistrate_test@127.0.0.1'
+import os
+import psycopg2
+
+TEST_DATA_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+
+
