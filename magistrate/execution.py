@@ -99,13 +99,11 @@ def _execute_target_migration(params: MigrationParameters, current_version: int,
     if len(migrations) == 0:
         return current_version
     
-    expected_version: int = _execute_migration_list(params, current_version, target_version, migrations)
+    _execute_migration_list(params, current_version, target_version, migrations)
 
     new_current_version = get_current_migration_version(params.connection_string)
 
-    assert new_current_version == expected_version
-
-    return current_version
+    return new_current_version
     
 def _execute_version_migration(params: MigrationParameters, migration_type: VersionMigration, current_version: int, highest_version: int) -> int:
     target_version: int = -1

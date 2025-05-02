@@ -25,12 +25,10 @@ def test_simple_valid_migration(conn_string, db):
         ),
         migration_type=VersionMigration(target_version='latest')
     )
+    
+    new_version = execute_migration(params)
 
-    try:
-        execute_migration(params)
-    except MigrationFailed as ex:
-        cause = ex.__cause__
-        assert False
+    assert new_version == 1
 
     with psycopg2.connect(conn_string) as conn:
         with conn.cursor() as cur:
