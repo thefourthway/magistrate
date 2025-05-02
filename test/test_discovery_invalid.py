@@ -5,7 +5,7 @@ import pytest
 from magistrate.discovery import discover_migrations
 from magistrate.exc import DuplicateMigrationVersions, MissingMigrationVersion, MissingMigrationVersions
 
-_invalid_discovery_base = os.path.abspath(os.path.join(os.path.dirname(__file__), 'test_discovery_data', 'invalid'))
+_invalid_discovery_base = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'test_discovery_data', 'invalid'))
 
 _invalid_discovery_data: list[tuple[str, typing.Type[Exception], typing.Callable[[Exception], bool]]] = [
     (

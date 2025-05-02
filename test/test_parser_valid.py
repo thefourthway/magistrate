@@ -5,7 +5,7 @@ from typing import Type, Optional
 
 from magistrate.parser import parse_migration
 
-_valid_migration_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'test_parser_data', 'valid'))
+_valid_migration_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'test_parser_data', 'valid'))
 
 def _load_valid_migration(name: str):
     with open(os.path.join(_valid_migration_path, name), 'r') as f:

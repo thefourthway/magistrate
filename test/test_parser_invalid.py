@@ -7,7 +7,7 @@ from magistrate.exc import BackwardsIncompatibilityViolation, DisjointedSections
 from magistrate.parser import MigrationDirection, parse_migration
 
 _invalid_migration_path = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), 'test_parser_data', 'invalid'))
+    os.path.dirname(__file__), 'data', 'test_parser_data', 'invalid'))
 
 
 def _load_invalid_migration(name: str):
