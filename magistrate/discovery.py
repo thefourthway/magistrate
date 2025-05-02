@@ -39,7 +39,7 @@ def discover_migrations(folder: str) -> list[tuple[int, str]]:
             raise MissingMigrationVersion(1, sorted_versions)
         
         if len(sorted_versions) > 1:
-            for i in range(1, len(sorted_versions) - 1):
+            for i in range(1, len(sorted_versions)):
                 version_diff = sorted_versions[i] - sorted_versions[i - 1]
 
                 if version_diff == 1:
