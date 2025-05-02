@@ -3,7 +3,7 @@ from io import StringIO
 import typing
 import pytest
 
-from magistrate.exc import BackwardsIncompatibilityViolation, DisjointedSections, IncompleteQuery, InvalidMigrationVersion, ManualCommitDisabled, MissingSection, SectionNotSet
+from magistrate.exc import BackwardsIncompatibilityViolation, DisjointedSections, IncompleteQuery, InvalidMigrationVersion, ManualCommitDisabled, MissingSection, SectionNotSet, VersionCannotBeZero
 from magistrate.parser import MigrationDirection, parse_migration
 
 _invalid_migration_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'test_parser_data', 'invalid'))
@@ -81,6 +81,11 @@ _invalid_parser_data: list[tuple[str, typing.Type[Exception], typing.Callable[[E
         'version_missing_version.mig.sql',
         InvalidMigrationVersion,
         lambda ex: typing.cast(InvalidMigrationVersion, ex).line == '-- ver:'
+    ),
+    (
+        'version_version_is_zero.mig.sql',
+        VersionCannotBeZero,
+        lambda ex: True
     )
 ]
 

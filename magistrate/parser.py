@@ -2,7 +2,7 @@
 import enum
 import re
 import pydantic
-from magistrate.exc import BackwardsIncompatibilityViolation, DisjointedSections, IncompleteQuery, InvalidMigrationVersion, ManualCommitDisabled, MissingSection, SectionNotSet
+from magistrate.exc import BackwardsIncompatibilityViolation, DisjointedSections, IncompleteQuery, InvalidMigrationVersion, ManualCommitDisabled, MissingSection, SectionNotSet, VersionCannotBeZero
 from typing import Protocol
 
 class MigrationDirection(enum.Enum):
@@ -70,6 +70,9 @@ def parse_migration(fd: _StringReader) -> Migration:
     version_line = fd.readline()
 
     version = parse_migration_version(version_line)
+
+    if version == 0:
+        raise VersionCannotBeZero()
 
     queries: dict[MigrationDirection, list[str]] = {
         MigrationDirection.up: [],

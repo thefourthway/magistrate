@@ -17,6 +17,13 @@ class InvalidMigrationVersion(MigrationError):
     def __str__(self):
         return f'Invalid migration version - "{self.line}" - Format is "-- ver: 1"'
 
+class VersionCannotBeZero(MigrationError):
+    def __repr__(self):
+        return 'VersionCannotBeZero()'
+    
+    def __str__(self):
+        return f'Migration version cannot be zero as this is reserved by magistrate'
+
 class SectionNotSet(MigrationError):
     def __repr__(self):
         return 'SectionNotSet()'
