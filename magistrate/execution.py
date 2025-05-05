@@ -143,9 +143,6 @@ def execute_migration(params: MigrationParameters) -> int:
     if current_version > highest_version:
         raise CurrentVersionTooHigh(current_version, highest_version)
     
-    if current_version == highest_version:
-        return current_version
-
     if isinstance(params.migration_type, VersionMigration):
         if params.migration_type.target_version != 'latest' and params.migration_type.target_version > highest_version:
             raise TargetVersionTooHigh(params.migration_type.target_version, highest_version)

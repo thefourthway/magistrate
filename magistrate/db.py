@@ -102,4 +102,22 @@ def migrate_up(conn_string: str, migration: 'Migration'):
                 raise 
 
 def migrate_down(conn_string: str, migration: 'Migration'):
-    pass
+    current_version = get_current_migration_version(conn_string)
+
+    if migration.version != current_version - 1:
+        raise IncompatibleVersions(current_version, migration.version)
+    
+    with psycopg2.connect(conn_string) as conn:
+        with conn.cursor() as cur:
+            try:
+                conn.autocommit = False
+
+                for query in migration.up_queries:
+                    cur.execute(query)
+
+                cur.execute('UPDATE magistrate_migrations SET version = %s', (migration.version,))
+
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise 
