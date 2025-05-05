@@ -81,7 +81,7 @@ python -m magistrate.main --directory /path/to/migration_files --version latest
 python -m magistrate.main --directory /path/to/migration_files --version 3
 python -m magistrate.main --get-version
 
-Database is currently migrated to version 2. Latest version is 4.
+Current version is 3
 ```
 
 ## .mig.sql
