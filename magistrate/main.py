@@ -83,8 +83,11 @@ def _main(args: argparse.Namespace):
 
     print('Database migrated. New version is', new_version)
 
-if __name__ == '__main__':
+def _main_no_args():
     _parser = _create_argument_parser()
     args = _get_args(_parser)
 
     _main(args)
+
+if __name__ == '__main__':
+    _main_no_args()
